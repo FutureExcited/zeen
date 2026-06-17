@@ -39,6 +39,11 @@ public:
     auto SetDropHandler(DropHandler handler) -> void { _dropHandler = std::move(handler); }
     auto ClearDropHandler() -> void { _dropHandler = nullptr; }
 
+    // Test seam: invoke the active drop handler with an already-stored path.
+    auto InvokeDropHandlerForTest(const std::filesystem::path& stored) -> void {
+        if (_dropHandler) _dropHandler(stored);
+    }
+
     // Copy a single dropped file into UploadsDir; returns the stored path (or empty
     // if the extension isn't a supported asset type).
     auto IngestUpload(const std::filesystem::path& source) const -> std::filesystem::path;

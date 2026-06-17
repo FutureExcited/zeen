@@ -34,6 +34,7 @@ private:
     auto RegisterDefaultTextures() -> void;
     auto SetupLobbies() -> void;
     auto MainLoop() -> void;
+    auto SelfTest() -> int;
 
     uint32_t _width = 0;
     uint32_t _height = 0;

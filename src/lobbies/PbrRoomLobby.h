@@ -51,8 +51,12 @@ protected:
     // Helpers for subclasses.
     auto Shader() const -> std::weak_ptr<BeShader>;
 
+    // Submit a glowing marker pillar at each portal so they're walk-up-able.
+    auto SubmitPortalMarkers(float now) -> void;
+
     std::shared_ptr<BeMaterial> _uniformMaterial;
     std::shared_ptr<BeProp> _floor;
+    std::shared_ptr<BeProp> _portalMarker;   // shared mesh, one draw per portal
     std::unique_ptr<UploadSpawner> _uploads;
     std::weak_ptr<BeShader> _shader;
     bool _prepared = false;

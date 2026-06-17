@@ -1,6 +1,8 @@
 #include "App.h"
 
+#include <cstdlib>
 #include <filesystem>
+#include <iostream>
 
 #if defined(__APPLE__)
 #include <limits.h>
@@ -62,10 +64,60 @@ auto App::Run() -> int {
     _lobbies = std::make_unique<LobbyManager>(this);
     SetupLobbies();
 
+    if (const char* st = std::getenv("ZEEN_SELFTEST"); st && *st) {
+        const int rc = SelfTest();
+        BeAssetRegistry::Shutdown();
+        return rc;
+    }
+
     MainLoop();
 
     BeAssetRegistry::Shutdown();
     return 0;
+}
+
+// Drives the REAL lobby manager + asset systems through a lobby round-trip and an
+// upload, rendering a frame between steps so passes actually build. Used to verify
+// the headless behaviours that can't be exercised by hand from a shell.
+auto App::SelfTest() -> int {
+    // Mirror MainLoop exactly: tick the active lobby (which submits geometry + lights)
+    // BEFORE Render(), or the lighting pass reads an empty sun-light list and crashes.
+    auto frame = [&] {
+        _window->PollEvents();
+        _input->Update();
+        if (auto* active = _lobbies->Active()) active->Tick(0.016f);
+        _renderer->Render();
+        _lobbies->ApplyPending();
+    };
+    int failures = 0;
+    auto check = [&](bool ok, const char* what) {
+        std::cout << "[selftest] " << (ok ? "PASS" : "FAIL") << " — " << what << '\n';
+        if (!ok) ++failures;
+    };
+
+    frame();   // settle into the starting lobby
+    check(_lobbies->CurrentName() == "zoro", "starts in zoro");
+
+    _lobbies->GoTo("outbound");
+    frame();
+    check(_lobbies->CurrentName() == "outbound", "GoTo(outbound) switched lobby");
+    check(_lobbies->Previous() == "zoro", "history remembers zoro as previous");
+
+    const bool wentBack = _lobbies->GoBack();
+    frame();
+    check(wentBack && _lobbies->CurrentName() == "zoro", "GoBack() returned to zoro");
+
+    // Real upload through the AssetManager + active lobby's drop handler.
+    if (const char* img = std::getenv("ZEEN_SELFTEST_IMAGE"); img && *img) {
+        const auto stored = _assets->IngestUpload(img);
+        check(!stored.empty() && std::filesystem::exists(stored), "IngestUpload stored the image");
+        _assets->InvokeDropHandlerForTest(stored);   // routes to active lobby's spawner
+        frame();
+        check(true, "drop handler ran without crashing (object spawned)");
+    }
+
+    std::cout << "[selftest] " << (failures == 0 ? "ALL PASS" : "FAILURES") << " (" << failures << ")\n";
+    return failures == 0 ? 0 : 2;
 }
 
 auto App::RegisterDefaultTextures() -> void {

@@ -29,11 +29,20 @@ auto Lobby::SpawnAtReturnPortalFrom(const std::string& fromLobby) -> void {
     if (!_camera) return;
     for (const auto& portal : _portals) {
         if (portal.TargetLobby == fromLobby) {
-            // Spawn a step in front of that portal, facing into the room.
-            const glm::vec3 inward = glm::normalize(_defaultSpawnLook - portal.Position
-                + glm::vec3(0.0001f));   // avoid zero vector
-            _camera->Position = portal.Position - inward * 2.0f;
+            // Spawn a step toward the room centre from the portal, facing inward —
+            // as if you just stepped through that door back into this room.
+            glm::vec3 inward = _defaultSpawnLook - portal.Position;
+            inward.y = 0.0f;
+            if (glm::length(inward) < 0.001f) inward = glm::vec3(0.0f, 0.0f, 1.0f);
+            inward = glm::normalize(inward);
+
+            _camera->Position = portal.Position + inward * 2.0f;   // in front of the portal
             _camera->Position.y = _defaultSpawnPos.y;
+
+            // Face into the room.
+            _camera->Yaw = glm::degrees(glm::atan(inward.z, inward.x));
+            _camera->Pitch = 0.0f;
+            _camera->Update();
             return;
         }
     }

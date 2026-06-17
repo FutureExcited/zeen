@@ -63,6 +63,13 @@ auto PbrRoomLobby::Prepare() -> void {
     _floor->Materials[0]->SetFloat("Roughness", 0.9f);
     _machine->RegisterMesh(_floor->Mesh);
 
+    // A glowing pillar reused as a marker at every portal.
+    _portalMarker = BeProp::FromMesh(BeMeshPrimitives::Cube(), _shader, "geometry-main");
+    _portalMarker->Materials[0]->SetFloat3("BaseColor", glm::vec3(0.1f, 0.5f, 1.0f));
+    _portalMarker->Materials[0]->SetFloat3("EmissiveColor", glm::vec3(0.2f, 0.8f, 1.6f));
+    _portalMarker->Materials[0]->SetFloat("Roughness", 0.3f);
+    _machine->RegisterMesh(_portalMarker->Mesh);
+
     // Subclass loads its props (registers meshes) before the single bake.
     BuildContent();
 
@@ -121,8 +128,26 @@ auto PbrRoomLobby::Tick(float deltaTime) -> void {
         .Prop = _floor,
     });
     SubmitContent(now);
+    SubmitPortalMarkers(now);
     _uploads->Submit();
     SubmitLights();
+}
+
+auto PbrRoomLobby::SubmitPortalMarkers(float now) -> void {
+    if (!_portalMarker) return;
+    int i = 0;
+    for (const auto& portal : _portals) {
+        // A slim, slowly bobbing pillar standing on the portal spot.
+        const float bob = 0.1f * glm::sin(now * 2.0f + static_cast<float>(i));
+        const glm::vec3 pos{portal.Position.x, 1.5f + bob, portal.Position.z};
+        _machine->AddGeometry({
+            .Name = "portal-" + portal.TargetLobby,
+            .ModelMatrix = BeSRMGeometryEntry::CalculateModelMatrix(
+                pos, glm::quat(glm::vec3(0.0f, now * 0.6f, 0.0f)), {0.35f, 3.0f, 0.35f}),
+            .Prop = _portalMarker,
+        });
+        ++i;
+    }
 }
 
 auto PbrRoomLobby::SubmitLights() -> void {
