@@ -1,0 +1,130 @@
+/*
+
+@be-material: zoro-pbr-material {
+    BaseColor: float3 = (1.0, 1.0, 1.0)
+
+    Metallic: float = 0.0
+    Roughness: float = 0.5
+    AO: float = 1.0
+
+    EmissiveColor: float3 = (0.0, 0.0, 0.0)
+
+    Diffuse_or_Albedo: texture2d = white
+    ORM_RGB: texture2d = default-orm
+    Emissive_RGB: texture2d = black
+    NormalMap: texture2d = flat-normal
+
+    InputSampler: sampler = linear-clamp
+}
+
+@be-shader zoro-pbr {
+    topology triangle-list
+    rasterizer back-solid
+    blend disable
+    depth less
+
+    vertex VertexFunction(position, normal, color4, uv0, tangent)
+    pixel PixelFunction
+
+    bind s0 frame uniform-material
+    bind s1 geometry-object object-material-for-geometry-pass
+    bind s2 geometry-main zoro-pbr-material
+
+    target s0 Albedo_RGB float3
+    target s1 WorldNormal_XYZ float4
+    target s2 ORM_RGB float4
+    target s3 EmissiveRGB float3
+}
+*/
+
+#include "uniform-material.hlsl"
+#include "objectMaterial.hlsl"
+
+struct zoro_pbr_material {
+    float3 BaseColor;
+    float Metallic;
+    float Roughness;
+    float AO;
+    float3 EmissiveColor;
+};
+
+cbuffer CBuffer_0 : register(b0, space0) {
+    uniform_material _Frame;
+};
+
+cbuffer CBuffer_1 : register(b0, space1) {
+    object_material_for_geometry_pass _GeometryObject;
+};
+
+cbuffer CBuffer_2 : register(b0, space2) {
+    zoro_pbr_material _GeometryMain;
+};
+
+SamplerState InputSampler : register(s1, space2);
+Texture2D Diffuse_or_Albedo : register(t2, space2);
+Texture2D ORM_RGB : register(t3, space2);
+Texture2D Emissive_RGB : register(t4, space2);
+Texture2D NormalMap : register(t5, space2);
+
+struct VertexInput {
+    float3 Position : POSITION;
+    float3 Normal : NORMAL;
+    float4 Color : COLOR;
+    float2 UV : TEXCOORD0;
+    float4 Tangent : TANGENT;
+};
+
+struct Interpolators {
+    float4 Position : SV_POSITION;
+    float3 Normal : NORMAL;
+    float4 Color : COLOR;
+    float4 Tangent : TANGENT;
+    float2 UV : TEXCOORD0;
+};
+
+struct PixelOutput {
+    float3 Albedo_RGB : SV_Target0;
+    float4 WorldNormal_XYZ : SV_Target1;
+    float4 ORM_RGB : SV_Target2;
+    float3 EmissiveRGB : SV_Target3;
+};
+
+Interpolators VertexFunction(VertexInput input) {
+    float4 worldPosition = mul(float4(input.Position, 1.0), _GeometryObject.Model);
+    float3x3 normalMatrix = (float3x3)_GeometryObject.Model;
+
+    Interpolators output;
+    output.Position = mul(worldPosition, _GeometryObject.ProjectionView);
+    output.Normal = normalize(mul(input.Normal, normalMatrix));
+    output.Color = input.Color;
+    output.Tangent = float4(normalize(mul(input.Tangent.xyz, normalMatrix)), input.Tangent.w);
+    output.UV = input.UV;
+    return output;
+}
+
+PixelOutput PixelFunction(Interpolators input) {
+    float4 diffuse_albedo = Diffuse_or_Albedo.Sample(InputSampler, input.UV);
+    if (diffuse_albedo.a < 0.5) discard;
+
+    float4 orm = ORM_RGB.Sample(InputSampler, input.UV);
+    float3 emissive = Emissive_RGB.Sample(InputSampler, input.UV).rgb;
+
+    float3 N = normalize(input.Normal);
+    float3 T = normalize(input.Tangent.xyz);
+    float3 B = cross(N, T) * input.Tangent.w;
+    float3x3 TBN = float3x3(T, B, N);
+    float3 normalSample = NormalMap.Sample(InputSampler, input.UV).rgb * 2.0 - 1.0;
+    float3 worldNormal = normalize(mul(normalSample, TBN));
+
+    PixelOutput output;
+    output.Albedo_RGB = diffuse_albedo.rgb * input.Color.rgb * _GeometryMain.BaseColor;
+    output.WorldNormal_XYZ = float4(worldNormal, 0.0);
+    output.ORM_RGB = float4(
+        orm.r * _GeometryMain.AO,
+        orm.g * _GeometryMain.Roughness,
+        orm.b * _GeometryMain.Metallic,
+        0.0
+    );
+    output.EmissiveRGB = emissive * _GeometryMain.EmissiveColor;
+    return output;
+}

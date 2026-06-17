@@ -1,0 +1,20 @@
+# Build output
+out/
+build/
+
+# macOS
+.DS_Store
+
+# User uploads land in the OS data dir, never in the repo
+
+# Third-party / large model assets — not redistributed in the public repo.
+# The zoro model is CC-BY (see assets/lobbies/zoro/zoro/ATTRIBUTION.txt); download
+# it yourself and drop it in. The app shows an empty room if it's missing.
+src/assets/lobbies/*/zoro/*
+!src/assets/lobbies/*/zoro/.gitkeep
+!src/assets/lobbies/*/zoro/README.md
+!src/assets/lobbies/*/zoro/ATTRIBUTION.txt
+
+# Any large binaries / personal images dropped into lobby asset dirs
+src/assets/lobbies/*/cards/*
+!src/assets/lobbies/*/cards/README.md

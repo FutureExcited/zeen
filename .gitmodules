@@ -1,0 +1,3 @@
+[submodule "external/be-engine"]
+	path = external/be-engine
+	url = https://github.com/progdruid/be-engine.git
