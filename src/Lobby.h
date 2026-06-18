@@ -15,6 +15,8 @@
 
 class App;
 class BeInput;
+class BeProp;
+class BeShader;
 
 // A portal is a walkable spot on the floor that takes you to another lobby.
 // Walk within Radius of Position and you transition to TargetLobby.
@@ -84,6 +86,15 @@ protected:
     // drops you at the door you'd use to return). Falls back to _defaultSpawn.
     auto SpawnAtReturnPortalFrom(const std::string& fromLobby) -> void;
 
+    // Build a floating text sign (destination name) for each portal. Call in
+    // Prepare() with the lobby's geometry shader and the shader's albedo-texture
+    // property name; registers the label meshes so they bake with everything else.
+    auto BuildPortalLabels(std::weak_ptr<BeShader> shader,
+                           const std::string& textureProp = "Diffuse_or_Albedo") -> void;
+    // Submit the portal signs each frame (call from the lobby's Tick/SubmitFrame),
+    // billboarded to face the camera and hovering above each portal.
+    auto SubmitPortalLabels(float now) -> void;
+
     App* _app = nullptr;
     std::string _name;
     std::string _arrivalFrom;   // lobby we just came from (set by manager)
@@ -94,6 +105,13 @@ protected:
     std::vector<Portal> _portals;
     glm::vec3 _defaultSpawnPos{0.0f, 1.8f, -5.0f};
     glm::vec3 _defaultSpawnLook{0.0f, 1.35f, 0.0f};
+
+    // Floating destination sign per portal (parallel to _portals).
+    struct PortalLabel {
+        std::shared_ptr<BeProp> prop;
+        float aspect = 4.0f;   // width/height of the sign quad
+    };
+    std::vector<PortalLabel> _portalLabels;
 
 private:
     bool _portalCooldown = false;   // prevents instant re-trigger right after spawning on a portal

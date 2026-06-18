@@ -36,10 +36,11 @@ namespace {
 }
 
 OutboundLobby::OutboundLobby(App* app) : PbrRoomLobby(app, "outbound") {
-    _defaultSpawnPos = {0.0f, 1.8f, 6.0f};
+    _defaultSpawnPos = {0.0f, 1.8f, 7.0f};
     _defaultSpawnLook = {0.0f, 1.6f, 0.0f};
-    // Portal across to the memory palace, off behind the gallery.
-    _portals.push_back({ .TargetLobby = "memory-palace", .Position = {0.0f, 0.0f, -8.0f}, .Radius = 1.4f, .Label = "Memory Palace" });
+    // Portal to the memory palace, set off to the right so it and its sign are
+    // clearly visible alongside the screenshot gallery (not hidden behind it).
+    _portals.push_back({ .TargetLobby = "memory-palace", .Position = {7.0f, 0.0f, 1.0f}, .Radius = 1.4f, .Label = "Memory Palace" });
 }
 
 auto OutboundLobby::AddScreenshot(const std::filesystem::path& path) -> void {

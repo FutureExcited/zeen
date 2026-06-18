@@ -73,6 +73,9 @@ auto PbrRoomLobby::Prepare() -> void {
     // Subclass loads its props (registers meshes) before the single bake.
     BuildContent();
 
+    // Floating destination signs above each portal.
+    BuildPortalLabels(_shader);
+
     _machine->BakeMeshes();
     _machine->DeclareGBufferTarget(Tex("BaseColor"), SenFormat::R11G11B10_Float);
     _machine->DeclareGBufferTarget(Tex("WorldNormal"), SenFormat::RGBA16_Float);
@@ -129,6 +132,7 @@ auto PbrRoomLobby::Tick(float deltaTime) -> void {
     });
     SubmitContent(now);
     SubmitPortalMarkers(now);
+    SubmitPortalLabels(now);
     _uploads->Submit();
     SubmitLights();
 }

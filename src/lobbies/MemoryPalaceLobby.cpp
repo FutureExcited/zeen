@@ -334,6 +334,10 @@ auto MemoryPalaceLobby::Prepare() -> void {
     _machine->RegisterMesh(_buttonMesh);
     _machine->RegisterMesh(_portalMarker->Mesh);
 
+    // Floating destination signs above each portal (the card shader samples
+    // CardTexture).
+    BuildPortalLabels(_cardShader, "CardTexture");
+
     // Initial cards from the bundled cards/ dir.
     const auto cardsDir = root / "cards";
     std::vector<std::filesystem::path> images;
@@ -473,6 +477,7 @@ auto MemoryPalaceLobby::SubmitFrame(float now) -> void {
         });
         ++pi;
     }
+    SubmitPortalLabels(now);
 
     for (size_t i = 0; i < _cards.size(); ++i) {
         _machine->AddGeometry({

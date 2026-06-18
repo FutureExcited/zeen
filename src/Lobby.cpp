@@ -1,18 +1,91 @@
 #include "Lobby.h"
 
 #include <umbrellas/include-glfw.h>
+#include <glm/gtc/matrix_transform.hpp>
 
+#include "BeAssetRegistry.h"
 #include "BeCamera.h"
 #include "BeInput.h"
+#include "BeMaterial.h"
+#include "BeMesh.h"
+#include "BeProp.h"
+#include "BeTexture.h"
 #include "standard-render-machine/BeStandardRenderMachine.h"
 
 #include "App.h"
 #include "LobbyManager.h"
+#include "TextLabel.h"
+
+namespace {
+    // Upright quad in the XY plane, front face +Z, with engine-correct UVs
+    // (top verts V=1 for the load-time flip, left verts U=1 for the front winding).
+    auto SignQuad() -> std::shared_ptr<BeMesh> {
+        auto mesh = std::make_shared<BeMesh>();
+        const glm::vec4 tan{1, 0, 0, 1}, col{1, 1, 1, 1};
+        const glm::vec3 n{0, 0, 1};
+        mesh->Vertices.push_back({.Position = {-0.5f,  0.5f, 0}, .Normal = n, .Color = col, .UV0 = {1, 1}, .Tangent = tan});
+        mesh->Vertices.push_back({.Position = { 0.5f,  0.5f, 0}, .Normal = n, .Color = col, .UV0 = {0, 1}, .Tangent = tan});
+        mesh->Vertices.push_back({.Position = { 0.5f, -0.5f, 0}, .Normal = n, .Color = col, .UV0 = {0, 0}, .Tangent = tan});
+        mesh->Vertices.push_back({.Position = {-0.5f, -0.5f, 0}, .Normal = n, .Color = col, .UV0 = {1, 0}, .Tangent = tan});
+        mesh->Indices = {0, 1, 2, 0, 2, 3};
+        mesh->Slices.push_back({.IndexCount = 6, .StartIndexLocation = 0, .BaseVertexLocation = 0});
+        return mesh;
+    }
+}
 
 Lobby::~Lobby() = default;
 
 auto Lobby::CameraPosition() const -> glm::vec3 {
     return _camera ? _camera->Position : glm::vec3(0.0f);
+}
+
+auto Lobby::BuildPortalLabels(std::weak_ptr<BeShader> shader, const std::string& textureProp) -> void {
+    if (!_machine) return;
+    _portalLabels.clear();
+    for (size_t i = 0; i < _portals.size(); ++i) {
+        const auto& portal = _portals[i];
+        std::string text = portal.Label.empty()
+            ? LobbyManager::DisplayName(portal.TargetLobby) : portal.Label;
+
+        uint32_t w = 0, h = 0;
+        auto tex = TextLabel::MakeTexture(text, "portal-label-" + _name + "-" + std::to_string(i),
+                                          6 /*pixelScale*/, w, h);
+        auto mesh = SignQuad();
+        auto prop = BeProp::FromMesh(mesh, shader, "geometry-main");
+        if (prop->Materials.empty()) continue;
+        prop->Slices[0].TwoSided = true;
+        // Texture + sampler are the only properties shared across the lobby shaders;
+        // setting anything else risks an unknown-property assert.
+        prop->Materials[0]->SetTexture(textureProp, tex);
+        prop->Materials[0]->SetSampler("InputSampler", BeAssetRegistry::GetSampler("point-clamp"));
+        _machine->RegisterMesh(mesh);
+
+        _portalLabels.push_back({.prop = prop, .aspect = h > 0 ? float(w) / float(h) : 4.0f});
+    }
+}
+
+auto Lobby::SubmitPortalLabels(float now) -> void {
+    if (!_machine || !_camera) return;
+    const float signHeight = 0.55f;
+    for (size_t i = 0; i < _portalLabels.size() && i < _portals.size(); ++i) {
+        const auto& portal = _portals[i];
+        const float bob = 0.08f * glm::sin(now * 2.0f + static_cast<float>(i));
+        const glm::vec3 pos{portal.Position.x, 3.5f + bob, portal.Position.z};
+
+        // Billboard: yaw the sign to face the camera (Y-axis only, stays upright).
+        glm::vec3 toCam = _camera->Position - pos;
+        toCam.y = 0.0f;
+        const float yaw = (glm::dot(toCam, toCam) > 0.0001f)
+            ? glm::atan(toCam.x, toCam.z) : 0.0f;
+        const glm::quat rot = glm::quat(glm::vec3(0.0f, yaw, 0.0f));
+        const glm::vec3 scale{signHeight * _portalLabels[i].aspect, signHeight, 1.0f};
+
+        _machine->AddGeometry({
+            .Name = "portal-label-" + std::to_string(i),
+            .ModelMatrix = BeSRMGeometryEntry::CalculateModelMatrix(pos, rot, scale),
+            .Prop = _portalLabels[i].prop,
+        });
+    }
 }
 
 auto Lobby::OnLoad() -> void {
