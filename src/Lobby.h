@@ -15,7 +15,6 @@
 
 class App;
 class BeInput;
-class LobbyHud;
 
 // A portal is a walkable spot on the floor that takes you to another lobby.
 // Walk within Radius of Position and you transition to TargetLobby.

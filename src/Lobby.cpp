@@ -7,7 +7,6 @@
 #include "standard-render-machine/BeStandardRenderMachine.h"
 
 #include "App.h"
-#include "LobbyHud.h"
 #include "LobbyManager.h"
 
 Lobby::~Lobby() = default;
@@ -27,9 +26,6 @@ auto Lobby::OnLoad() -> void {
     }
     _portalCooldown = true;   // don't re-trigger the portal we just spawned on
     OnEnter();
-    // Re-register the shared nav HUD on top of this lobby's passes (OnEnter did
-    // ClearPasses, which dropped it from the renderer's list).
-    if (_app->Hud()) _app->Hud()->RegisterWithRenderer();
     _arrivalFrom.clear();
 }
 
@@ -127,10 +123,11 @@ auto Lobby::UpdateFreeCamera(float deltaTime) -> void {
     const float movementLenSq = glm::dot(movement, movement);
     const glm::vec3 wishDir = movementLenSq > 0.0001f ? movement / glm::sqrt(movementLenSq) : glm::vec3(0.0f);
 
-    if (input.GetMouseButtonDown(GLFW_MOUSE_BUTTON_LEFT) || input.GetMouseButtonDown(GLFW_MOUSE_BUTTON_RIGHT)) {
+    // Hold right-mouse to look — the cursor stays visible the rest of the time, so
+    // you can always see where it is. (No click-to-capture; teleport is by walking
+    // into portals, not by clicking UI.)
+    if (input.GetMouseButton(GLFW_MOUSE_BUTTON_RIGHT)) {
         input.SetMouseCapture(true);
-    }
-    if (input.IsMouseCaptured()) {
         const glm::vec2 mouseDelta = input.GetMouseDelta();
         camera.Yaw -= mouseDelta.x * 0.1f;
         camera.Pitch -= mouseDelta.y * 0.1f;

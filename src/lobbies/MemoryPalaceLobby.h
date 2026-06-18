@@ -44,6 +44,7 @@ private:
     std::shared_ptr<BeProp> _floor;
     std::shared_ptr<BeProp> _buttonBase;
     std::shared_ptr<BeProp> _buttonKnob;
+    std::shared_ptr<BeProp> _portalMarker;   // glowing pillar at each portal
 
     std::shared_ptr<BeMesh> _cardMesh;
     std::shared_ptr<BeMesh> _sleeveMesh;

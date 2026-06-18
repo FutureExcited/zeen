@@ -252,8 +252,8 @@ namespace {
 MemoryPalaceLobby::MemoryPalaceLobby(App* app) : Lobby(app, "memory-palace") {
     _defaultSpawnPos = {0.0f, 1.75f, -6.0f};
     _defaultSpawnLook = {0.0f, 1.95f, 0.0f};
-    _portals.push_back({.TargetLobby = "zoro",     .Position = {0.0f, 0.0f, -9.0f}, .Radius = 1.5f, .Label = "Back"});
-    _portals.push_back({.TargetLobby = "outbound", .Position = {0.0f, 0.0f, 30.0f}, .Radius = 1.6f, .Label = "Outbound"});
+    // Portal back to outbound, placed at the near end of the corridor behind spawn.
+    _portals.push_back({.TargetLobby = "outbound", .Position = {0.0f, 0.0f, -9.0f}, .Radius = 1.6f, .Label = "Outbound"});
 }
 
 MemoryPalaceLobby::~MemoryPalaceLobby() = default;
@@ -322,10 +322,17 @@ auto MemoryPalaceLobby::Prepare() -> void {
     _buttonKnob->Materials[0]->SetFloat3("EmissiveColor", glm::vec3(0.16f, 0.86f, 0.48f));
     _buttonKnob->Materials[0]->SetFloat("EmissiveStrength", 0.65f);
 
+    // Glowing portal pillar (walk into it to teleport).
+    _portalMarker = BeProp::FromMesh(BeMeshPrimitives::Cube(), buttonShader, "geometry-main");
+    _portalMarker->Materials[0]->SetFloat3("BaseColor", glm::vec3(0.1f, 0.5f, 1.0f));
+    _portalMarker->Materials[0]->SetFloat3("EmissiveColor", glm::vec3(0.25f, 0.7f, 1.6f));
+    _portalMarker->Materials[0]->SetFloat("EmissiveStrength", 1.0f);
+
     _machine->RegisterMesh(_cardMesh);
     _machine->RegisterMesh(_sleeveMesh);
     _machine->RegisterMesh(_floor->Mesh);
     _machine->RegisterMesh(_buttonMesh);
+    _machine->RegisterMesh(_portalMarker->Mesh);
 
     // Initial cards from the bundled cards/ dir.
     const auto cardsDir = root / "cards";
@@ -452,6 +459,20 @@ auto MemoryPalaceLobby::SubmitFrame(float now) -> void {
     });
     _machine->AddGeometry({.Name = "btn-base", .ModelMatrix = BeSRMGeometryEntry::CalculateModelMatrix(kButtonPosition, glm::quat(), kButtonScale), .Prop = _buttonBase});
     _machine->AddGeometry({.Name = "btn-knob", .ModelMatrix = BeSRMGeometryEntry::CalculateModelMatrix(knobPosition, glm::quat(), kKnobScale), .Prop = _buttonKnob});
+
+    // Glowing portal pillars — walk into one to teleport.
+    int pi = 0;
+    for (const auto& portal : _portals) {
+        const float bob = 0.12f * glm::sin(now * 2.0f + static_cast<float>(pi));
+        _machine->AddGeometry({
+            .Name = "portal-" + portal.TargetLobby,
+            .ModelMatrix = BeSRMGeometryEntry::CalculateModelMatrix(
+                {portal.Position.x, 1.6f + bob, portal.Position.z},
+                glm::quat(glm::vec3(0.0f, now * 0.6f, 0.0f)), {0.4f, 3.2f, 0.4f}),
+            .Prop = _portalMarker,
+        });
+        ++pi;
+    }
 
     for (size_t i = 0; i < _cards.size(); ++i) {
         _machine->AddGeometry({

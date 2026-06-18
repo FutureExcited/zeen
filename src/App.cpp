@@ -19,9 +19,7 @@
 #include "BeWindow.h"
 
 #include "AssetManager.h"
-#include "LobbyHud.h"
 #include "LobbyManager.h"
-#include "lobbies/ZoroLobby.h"
 #include "lobbies/MemoryPalaceLobby.h"
 #include "lobbies/OutboundLobby.h"
 
@@ -45,6 +43,9 @@ auto App::Run() -> int {
     MoveWorkingDirectoryToExecutableDir();
 
     _window = std::make_shared<BeWindow>(1280, 720, "zeen", BeWindowMode::Windowed);
+    // Bring the window to the front on launch (GLFW windows otherwise open behind).
+    glfwShowWindow(_window->GetGlfwWindow());
+    glfwFocusWindow(_window->GetGlfwWindow());
     _width = static_cast<uint32_t>(_window->GetReportedPixelWidth());
     _height = static_cast<uint32_t>(_window->GetReportedPixelHeight());
 
@@ -61,9 +62,6 @@ auto App::Run() -> int {
 
     _assets = std::make_unique<AssetManager>(this);
     _assets->InstallDropHandler(_window->GetGlfwWindow());
-
-    _hud = std::make_unique<LobbyHud>(this);
-    _hud->Initialise();
 
     _lobbies = std::make_unique<LobbyManager>(this);
     SetupLobbies();
@@ -100,16 +98,16 @@ auto App::SelfTest() -> int {
     };
 
     frame();   // settle into the starting lobby
-    check(_lobbies->CurrentName() == "zoro", "starts in zoro");
+    check(_lobbies->CurrentName() == "outbound", "starts in outbound");
 
-    _lobbies->GoTo("outbound");
+    _lobbies->GoTo("memory-palace");
     frame();
-    check(_lobbies->CurrentName() == "outbound", "GoTo(outbound) switched lobby");
-    check(_lobbies->Previous() == "zoro", "history remembers zoro as previous");
+    check(_lobbies->CurrentName() == "memory-palace", "GoTo(memory-palace) switched lobby");
+    check(_lobbies->Previous() == "outbound", "history remembers outbound as previous");
 
     const bool wentBack = _lobbies->GoBack();
     frame();
-    check(wentBack && _lobbies->CurrentName() == "zoro", "GoBack() returned to zoro");
+    check(wentBack && _lobbies->CurrentName() == "outbound", "GoBack() returned to outbound");
 
     // Real upload through the AssetManager + active lobby's drop handler.
     if (const char* img = std::getenv("ZEEN_SELFTEST_IMAGE"); img && *img) {
@@ -148,13 +146,12 @@ auto App::RegisterDefaultTextures() -> void {
 }
 
 auto App::SetupLobbies() -> void {
-    _lobbies->Add(std::make_unique<ZoroLobby>(this));
-    _lobbies->Add(std::make_unique<MemoryPalaceLobby>(this));
     _lobbies->Add(std::make_unique<OutboundLobby>(this));
+    _lobbies->Add(std::make_unique<MemoryPalaceLobby>(this));
 
     _lobbies->PrepareAll();
-    // Reopen the lobby you were last in; first run defaults to zoro.
-    _lobbies->Start("zoro", /*preferPersisted=*/true);
+    // Reopen the lobby you were last in; first run defaults to outbound (the hub).
+    _lobbies->Start("outbound", /*preferPersisted=*/true);
 }
 
 auto App::MainLoop() -> void {
@@ -168,12 +165,7 @@ auto App::MainLoop() -> void {
         lastTime = now;
 
         if (_input->GetKeyDown(GLFW_KEY_ESCAPE)) {
-            // First Escape frees the captured cursor; press again to quit.
-            if (_input->IsMouseCaptured()) {
-                _input->SetMouseCapture(false);
-            } else {
-                _window->RequestClose();
-            }
+            _window->RequestClose();
         }
 
         if (auto* active = _lobbies->Active()) {
