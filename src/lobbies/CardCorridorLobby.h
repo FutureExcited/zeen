@@ -55,6 +55,9 @@ private:
     auto Tex(const char* suffix) const -> std::string { return _name + "_" + suffix; }
 
     auto AddCardFromImage(const std::filesystem::path& imagePath) -> void;
+    // Read the OS clipboard image, save it PERSISTENTLY into this lobby's cards/
+    // dir, and spawn it as a card. No-op if the clipboard has no image.
+    auto PasteScreenshotCard() -> void;
     auto SubmitFrame(float now) -> void;
 
     std::shared_ptr<BeMaterial> _uniformMaterial;
@@ -62,6 +65,8 @@ private:
     std::shared_ptr<BeProp> _buttonBase;
     std::shared_ptr<BeProp> _buttonKnob;
     std::shared_ptr<BeProp> _portalMarker;   // glowing pillar at each portal
+    std::shared_ptr<BeProp> _uploader;        // click it, then paste to add a card
+    bool _uploaderArmed = false;              // waiting for Ctrl/Cmd-V after a click
 
     std::shared_ptr<BeMesh> _cardMesh;
     std::shared_ptr<BeMesh> _sleeveMesh;

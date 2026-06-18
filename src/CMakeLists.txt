@@ -2,10 +2,20 @@ file(GLOB_RECURSE ZEEN_SOURCES CONFIGURE_DEPENDS *.cpp *.h *.hpp)
 file(GLOB_RECURSE HLSL_FILES CONFIGURE_DEPENDS assets/*.hlsl assets/*.hlsli)
 set_source_files_properties(${HLSL_FILES} PROPERTIES HEADER_FILE_ONLY TRUE)
 
-add_executable(zeen ${ZEEN_SOURCES} ${HLSL_FILES})
+# Objective-C++ clipboard reader (NSPasteboard) — macOS only.
+set(ZEEN_PLATFORM_SOURCES "")
+if(APPLE)
+    list(APPEND ZEEN_PLATFORM_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ClipboardImage.mm")
+endif()
+
+add_executable(zeen ${ZEEN_SOURCES} ${ZEEN_PLATFORM_SOURCES} ${HLSL_FILES})
 set_target_properties(zeen PROPERTIES MACOSX_BUNDLE TRUE)
 target_include_directories(zeen PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(zeen PRIVATE core toolkit)
+
+if(APPLE)
+    target_link_libraries(zeen PRIVATE "-framework AppKit" "-framework Foundation")
+endif()
 
 be_apply_defaults(zeen)
 

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdio>
 #include <iostream>
 #include <string>
 
@@ -28,6 +29,7 @@
 
 #include "App.h"
 #include "AssetManager.h"
+#include "ClipboardImage.h"
 #include "LobbyManager.h"
 
 namespace {
@@ -247,6 +249,12 @@ namespace {
     constexpr glm::vec3 kButtonHitCenter = {0.0f, 0.18f, -3.05f};
     constexpr glm::vec3 kButtonHitHalf = {0.95f, 0.42f, 0.95f};
     constexpr glm::vec3 kKnobScale = {0.74f, 0.18f, 0.74f};
+
+    // Upload pedestal — a glowing puck beside the follow-cam button.
+    constexpr glm::vec3 kUploaderPosition = {2.6f, 0.10f, -3.05f};
+    constexpr glm::vec3 kUploaderScale = {1.1f, 0.55f, 1.1f};
+    constexpr glm::vec3 kUploaderHitCenter = {2.6f, 0.35f, -3.05f};
+    constexpr glm::vec3 kUploaderHitHalf = {0.9f, 0.7f, 0.9f};
 }
 
 CardCorridorLobby::CardCorridorLobby(App* app, std::string name, std::string cardsDir)
@@ -329,6 +337,12 @@ auto CardCorridorLobby::Prepare() -> void {
     _portalMarker->Materials[0]->SetFloat3("EmissiveColor", glm::vec3(0.25f, 0.7f, 1.6f));
     _portalMarker->Materials[0]->SetFloat("EmissiveStrength", 1.0f);
 
+    // Upload pedestal — click it, then Ctrl/Cmd-V to paste a screenshot as a card.
+    _uploader = BeProp::FromMesh(_buttonMesh, buttonShader, "geometry-main");
+    _uploader->Materials[0]->SetFloat3("BaseColor", glm::vec3(0.9f, 0.55f, 0.1f));
+    _uploader->Materials[0]->SetFloat3("EmissiveColor", glm::vec3(1.0f, 0.55f, 0.1f));
+    _uploader->Materials[0]->SetFloat("EmissiveStrength", 0.5f);
+
     _machine->RegisterMesh(_cardMesh);
     _machine->RegisterMesh(_sleeveMesh);
     _machine->RegisterMesh(_floor->Mesh);
@@ -386,8 +400,36 @@ auto CardCorridorLobby::AddCardFromImage(const std::filesystem::path& imagePath)
             .Position = placement.Position, .Rotation = placement.Rotation, .Scale = placement.Scale,
         });
     } catch (const std::exception& e) {
-        std::cerr << "zeen[memory-palace]: skipping card " << imagePath << ": " << e.what() << '\n';
+        std::cerr << "zeen[" << _name << "]: skipping card " << imagePath << ": " << e.what() << '\n';
     }
+}
+
+auto CardCorridorLobby::PasteScreenshotCard() -> void {
+    if (!ClipboardImage::HasImage()) {
+        std::cerr << "zeen[" << _name << "]: clipboard has no image to paste\n";
+        return;
+    }
+
+    // Persist into this lobby's cards/ dir so it reloads on the next launch.
+    const auto cardsDir = _app->Assets()->LobbyRoot(_name) / _cardsDir;
+    std::error_code ec;
+    std::filesystem::create_directories(cardsDir, ec);
+
+    // Pick the first free "pasted-NN.png".
+    std::filesystem::path dest;
+    for (int i = 0; i < 10000; ++i) {
+        char buf[32];
+        std::snprintf(buf, sizeof(buf), "pasted-%03d.png", i);
+        dest = cardsDir / buf;
+        if (!std::filesystem::exists(dest)) break;
+    }
+
+    if (!ClipboardImage::SaveToPng(dest)) {
+        std::cerr << "zeen[" << _name << "]: failed to save clipboard image to " << dest << '\n';
+        return;
+    }
+    std::cout << "zeen[" << _name << "]: pasted screenshot -> " << dest.filename() << '\n';
+    AddCardFromImage(dest);
 }
 
 auto CardCorridorLobby::OnEnter() -> void {
@@ -433,6 +475,31 @@ auto CardCorridorLobby::SubmitFrame(float now) -> void {
         _cardsFollowCamera = !_cardsFollowCamera;
     }
 
+    // ── Upload pedestal: click to arm, then Ctrl/Cmd-V pastes a screenshot card ──
+    const bool uploaderHovered = RayIntersectsAabb(
+        _camera->Position, glm::normalize(_camera->GetFront()), kUploaderHitCenter, kUploaderHitHalf, 8.0f);
+    if (uploaderHovered && input.GetMouseButtonDown(GLFW_MOUSE_BUTTON_LEFT)) {
+        _uploaderArmed = !_uploaderArmed;   // click toggles paste-mode
+    }
+    if (_uploaderArmed) {
+        const bool mod = input.GetKey(GLFW_KEY_LEFT_SUPER) || input.GetKey(GLFW_KEY_RIGHT_SUPER) ||
+                         input.GetKey(GLFW_KEY_LEFT_CONTROL) || input.GetKey(GLFW_KEY_RIGHT_CONTROL);
+        if (mod && input.GetKeyDown(GLFW_KEY_V)) {
+            PasteScreenshotCard();
+            _uploaderArmed = false;
+        }
+    }
+    // Pulse the pedestal: orange idle, bright green while armed.
+    {
+        const float pulse = 0.5f + 0.5f * glm::sin(now * 6.0f);
+        const glm::vec3 idle{1.0f, 0.55f, 0.1f};
+        const glm::vec3 armed{0.2f, 1.0f, 0.4f};
+        const glm::vec3 col = _uploaderArmed ? armed : idle;
+        _uploader->Materials[0]->SetFloat3("EmissiveColor", col);
+        _uploader->Materials[0]->SetFloat("EmissiveStrength", _uploaderArmed ? (0.6f + pulse) : (uploaderHovered ? 0.9f : 0.5f));
+        _uploader->Materials[0]->SetFloat3("BaseColor", col * 0.6f);
+    }
+
     for (auto& card : _cards) {
         card.Rotation = _cardsFollowCamera
             ? RotationFacingTarget(card.Position, _camera->Position)
@@ -465,6 +532,10 @@ auto CardCorridorLobby::SubmitFrame(float now) -> void {
     });
     _machine->AddGeometry({.Name = "btn-base", .ModelMatrix = BeSRMGeometryEntry::CalculateModelMatrix(kButtonPosition, glm::quat(), kButtonScale), .Prop = _buttonBase});
     _machine->AddGeometry({.Name = "btn-knob", .ModelMatrix = BeSRMGeometryEntry::CalculateModelMatrix(knobPosition, glm::quat(), kKnobScale), .Prop = _buttonKnob});
+    _machine->AddGeometry({.Name = "uploader",
+        .ModelMatrix = BeSRMGeometryEntry::CalculateModelMatrix(kUploaderPosition,
+            glm::quat(glm::vec3(0.0f, now * 0.8f, 0.0f)), kUploaderScale),
+        .Prop = _uploader});
 
     // Glowing portal pillars — walk into one to teleport.
     int pi = 0;
