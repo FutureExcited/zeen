@@ -7,9 +7,14 @@
 #include "standard-render-machine/BeStandardRenderMachine.h"
 
 #include "App.h"
+#include "LobbyHud.h"
 #include "LobbyManager.h"
 
 Lobby::~Lobby() = default;
+
+auto Lobby::CameraPosition() const -> glm::vec3 {
+    return _camera ? _camera->Position : glm::vec3(0.0f);
+}
 
 auto Lobby::OnLoad() -> void {
     // Place the player. If we arrived from another lobby, spawn at the portal that
@@ -22,6 +27,9 @@ auto Lobby::OnLoad() -> void {
     }
     _portalCooldown = true;   // don't re-trigger the portal we just spawned on
     OnEnter();
+    // Re-register the shared nav HUD on top of this lobby's passes (OnEnter did
+    // ClearPasses, which dropped it from the renderer's list).
+    if (_app->Hud()) _app->Hud()->RegisterWithRenderer();
     _arrivalFrom.clear();
 }
 

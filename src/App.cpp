@@ -19,6 +19,7 @@
 #include "BeWindow.h"
 
 #include "AssetManager.h"
+#include "LobbyHud.h"
 #include "LobbyManager.h"
 #include "lobbies/ZoroLobby.h"
 #include "lobbies/MemoryPalaceLobby.h"
@@ -60,6 +61,9 @@ auto App::Run() -> int {
 
     _assets = std::make_unique<AssetManager>(this);
     _assets->InstallDropHandler(_window->GetGlfwWindow());
+
+    _hud = std::make_unique<LobbyHud>(this);
+    _hud->Initialise();
 
     _lobbies = std::make_unique<LobbyManager>(this);
     SetupLobbies();

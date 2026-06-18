@@ -47,6 +47,11 @@ public:
     auto CurrentName() const -> const std::string& { return _current; }
     auto Has(const std::string& name) const -> bool;
 
+    // All registered lobby ids, in registration order (for the nav HUD).
+    auto Names() const -> const std::vector<std::string>& { return _registered; }
+    // Pretty display name for a lobby id (e.g. "memory-palace" -> "Memory Palace").
+    static auto DisplayName(const std::string& id) -> std::string;
+
 private:
     auto PerformSwitch(const std::string& target, const std::string& arrivalFrom) -> void;
     auto StateFilePath() const -> std::string;

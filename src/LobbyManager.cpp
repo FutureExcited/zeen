@@ -1,6 +1,7 @@
 #include "LobbyManager.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -23,6 +24,17 @@ auto LobbyManager::Add(std::unique_ptr<Lobby> lobby) -> void {
 
 auto LobbyManager::Has(const std::string& name) const -> bool {
     return std::find(_registered.begin(), _registered.end(), name) != _registered.end();
+}
+
+auto LobbyManager::DisplayName(const std::string& id) -> std::string {
+    std::string out;
+    bool capNext = true;
+    for (char c : id) {
+        if (c == '-' || c == '_') { out += ' '; capNext = true; continue; }
+        out += capNext ? static_cast<char>(std::toupper(static_cast<unsigned char>(c))) : c;
+        capNext = false;
+    }
+    return out;
 }
 
 auto LobbyManager::PrepareAll() -> void {

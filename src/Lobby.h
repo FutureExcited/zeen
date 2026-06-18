@@ -15,6 +15,7 @@
 
 class App;
 class BeInput;
+class LobbyHud;
 
 // A portal is a walkable spot on the floor that takes you to another lobby.
 // Walk within Radius of Position and you transition to TargetLobby.
@@ -52,6 +53,7 @@ public:
     auto SetArrivalFrom(const std::string& fromLobby) -> void { _arrivalFrom = fromLobby; }
 
     auto Portals() const -> const std::vector<Portal>& { return _portals; }
+    auto CameraPosition() const -> glm::vec3;   // current eye position (0 if no camera)
 
 protected:
     // Subclasses override this for per-entry placement (camera spawn).

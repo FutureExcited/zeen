@@ -9,6 +9,7 @@ class BeRenderer;
 class BeInput;
 class LobbyManager;
 class AssetManager;
+class LobbyHud;
 
 // The zeen host. Owns the window/renderer/input and the lobby manager, and runs
 // the main loop. Lobbies (BeScene subclasses) are registered with the manager and
@@ -26,6 +27,7 @@ public:
     auto Input() const -> BeInput* { return _input.get(); }
     auto Lobbies() const -> LobbyManager* { return _lobbies.get(); }
     auto Assets() const -> AssetManager* { return _assets.get(); }
+    auto Hud() const -> LobbyHud* { return _hud.get(); }
 
     auto Width() const -> uint32_t { return _width; }
     auto Height() const -> uint32_t { return _height; }
@@ -44,4 +46,5 @@ private:
     std::unique_ptr<BeInput>    _input;
     std::unique_ptr<LobbyManager> _lobbies;
     std::unique_ptr<AssetManager> _assets;
+    std::unique_ptr<LobbyHud> _hud;
 };
