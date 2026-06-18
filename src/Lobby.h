@@ -57,8 +57,23 @@ protected:
     // Subclasses override this for per-entry placement (camera spawn).
     virtual auto OnEnter() -> void {}
 
-    // Shared free-flight movement + mouselook, identical across lobbies.
+    // Shared Quake-style movement (walk/jump/bhop, double-tap-space to fly,
+    // crouch, gravity, accel/friction) + mouselook. Identical across lobbies.
     auto UpdateFreeCamera(float deltaTime) -> void;
+
+    // Per-lobby movement state (Quake-style controller).
+    struct PlayerController {
+        bool Flying = false;
+        bool Grounded = true;
+        float VerticalVelocity = 0.0f;
+        float EyeHeight = 1.65f;
+        double LastSpaceTapTime = -100.0;
+        bool WaitingForFlightTap = false;
+        bool SpaceReleasedAfterTap = true;
+        bool SuppressSpaceClimbUntilReleased = false;
+        glm::vec3 HorizontalVelocity{0.0f};
+    };
+    PlayerController _controller;
 
     // Walk-into-portal detection. If the camera is inside a portal radius, asks the
     // manager to switch lobbies. Returns true if a transition was requested.

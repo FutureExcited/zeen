@@ -164,7 +164,12 @@ auto App::MainLoop() -> void {
         lastTime = now;
 
         if (_input->GetKeyDown(GLFW_KEY_ESCAPE)) {
-            _window->RequestClose();
+            // First Escape frees the captured cursor; press again to quit.
+            if (_input->IsMouseCaptured()) {
+                _input->SetMouseCapture(false);
+            } else {
+                _window->RequestClose();
+            }
         }
 
         if (auto* active = _lobbies->Active()) {
