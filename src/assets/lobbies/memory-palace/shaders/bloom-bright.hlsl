@@ -1,9 +1,9 @@
 /*
 
 @be-material: bloom-bright-material {
-    Threshold: float = 1.3
-    Intensity: float = 1.8
-    Knee: float = 1.0
+    Threshold: float = 2.2
+    Intensity: float = 0.9
+    Knee: float = 0.7
     Clamp: float = 16.0
     HDRInput: texture2d = black
     InputSampler: sampler = linear-clamp

@@ -57,13 +57,26 @@ namespace {
 
     auto CreateCardMesh() -> std::shared_ptr<BeMesh> {
         auto mesh = std::make_shared<BeMesh>();
-        constexpr float l = -0.5f, r = 0.5f, b = -0.5f, t = 0.5f, fz = -0.026f, bz = 0.026f;
-        AddCardQuad(*mesh, {l,t,fz},{r,t,fz},{r,b,fz},{l,b,fz}, {0,0,-1}, {0,0},{1,0},{1,1},{0,1});
-        AddCardQuad(*mesh, {r,t,bz},{l,t,bz},{l,b,bz},{r,b,bz}, {0,0,1},  {0,0},{1,0},{1,1},{0,1});
-        AddCardQuad(*mesh, {l,t,fz},{r,t,fz},{r,t,bz},{l,t,bz}, {0,1,0},  {0,1},{1,1},{1,1},{0,1});
-        AddCardQuad(*mesh, {r,b,fz},{l,b,fz},{l,b,bz},{r,b,bz}, {0,-1,0}, {1,0},{0,0},{0,0},{1,0});
-        AddCardQuad(*mesh, {l,b,fz},{l,t,fz},{l,t,bz},{l,b,bz}, {-1,0,0}, {0,0},{0,1},{0,1},{0,0});
-        AddCardQuad(*mesh, {r,t,fz},{r,b,fz},{r,b,bz},{r,t,bz}, {1,0,0},  {1,1},{1,0},{1,0},{1,1});
+        constexpr float left = -0.5f, right = 0.5f, bottom = -0.5f, top = 0.5f, frontZ = -0.026f, backZ = 0.026f;
+        // UVs transcribed EXACTLY from the working fork — top verts get V=1, bottom V=0.
+        AddCardQuad(*mesh,
+            {left,top,frontZ},{right,top,frontZ},{right,bottom,frontZ},{left,bottom,frontZ}, {0,0,-1},
+            {0,1},{1,1},{1,0},{0,0});
+        AddCardQuad(*mesh,
+            {right,top,backZ},{left,top,backZ},{left,bottom,backZ},{right,bottom,backZ}, {0,0,1},
+            {0,1},{1,1},{1,0},{0,0});
+        AddCardQuad(*mesh,
+            {left,top,frontZ},{right,top,frontZ},{right,top,backZ},{left,top,backZ}, {0,1,0},
+            {0,1},{1,1},{1,1},{0,1});
+        AddCardQuad(*mesh,
+            {right,bottom,frontZ},{left,bottom,frontZ},{left,bottom,backZ},{right,bottom,backZ}, {0,-1,0},
+            {1,0},{0,0},{0,0},{1,0});
+        AddCardQuad(*mesh,
+            {left,bottom,frontZ},{left,top,frontZ},{left,top,backZ},{left,bottom,backZ}, {-1,0,0},
+            {0,0},{0,1},{0,1},{0,0});
+        AddCardQuad(*mesh,
+            {right,top,frontZ},{right,bottom,frontZ},{right,bottom,backZ},{right,top,backZ}, {1,0,0},
+            {1,1},{1,0},{1,0},{1,1});
         mesh->Slices.push_back({.IndexCount = static_cast<uint32_t>(mesh->Indices.size()), .StartIndexLocation = 0, .BaseVertexLocation = 0});
         return mesh;
     }
